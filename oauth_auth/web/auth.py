@@ -3,7 +3,7 @@ from fastapi.responses import RedirectResponse, JSONResponse, Response
 from ..service.auth import create_user, login_for_access_token, token_manager, google_user
 from ..model.models import User, Token
 from typing import Annotated, Optional
-from sqlmodel import Session
+from sqlmodel import Session, select
 from ..data.db import get_session
 from ..utils.auth import get_current_active_user
 from fastapi.security.oauth2 import OAuth2PasswordRequestForm
@@ -88,7 +88,7 @@ async def auth(request: Request, session: Annotated[Session, Depends(get_session
         user_name = idinfo['name']
 
         # Check if the user exists in your database. If the user doesn't exist, add the user to the database
-        new_google_user = await google_user(session, user_email, user_name)
+        new_google_user = await google_user(session, email=user_email, username=user_name)
         if new_google_user is None:
             raise HTTPException(status_code=400, detail="User not found")
         

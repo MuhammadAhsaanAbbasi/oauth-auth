@@ -12,6 +12,8 @@ import secrets
 
 def create_user(user: User, session: Annotated[Session, Depends(get_session)]):
     user.hashed_password = get_password_hash(user.hashed_password)
+    if(user.email):
+        raise HTTPException(status_code=400, detail="Email already registered")
     session.add(user)
     session.commit()
     session.refresh(user)
@@ -59,10 +61,10 @@ async def google_user(session: Annotated[Session, Depends(get_session)], usernam
             return new_user
         access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
         access_token = create_access_token(
-                    data={"sub": user.username})
+                    data={"sub": user.username}, expires_delta=access_token_expires)
         refresh_token_expires = timedelta(minutes=REFRESH_TOKEN_EXPIRE_MINUTES)
         refresh_token = create_refresh_token(
-                    data={"sub": user.email})
+                    data={"sub": user.email}, expires_delta=refresh_token_expires)
         return Token(
         access_token=access_token, 
         token_type="bearer", 
