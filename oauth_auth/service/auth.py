@@ -2,22 +2,24 @@ from typing import Annotated, Optional
 from sqlmodel import  Session, select
 from fastapi import Depends, HTTPException, Form
 from ..data.db import get_session
-from ..model.models import User, Token, RegisterUser
+from ..model.models import User, Token, Todo
 from fastapi.security.oauth2 import OAuth2PasswordRequestForm
-from ..utils.auth import authenticate_user, get_password_hash, create_access_token, create_refresh_token, tokens_service
+from ..utils.auth import authenticate_user, get_password_hash, create_access_token, create_refresh_token, tokens_service, get_current_active_user
 from datetime import timedelta
 from ..utils.auth import REFRESH_TOKEN_EXPIRE_MINUTES, ACCESS_TOKEN_EXPIRE_MINUTES
 import string
 import secrets
 
 def create_user(user: User, session: Annotated[Session, Depends(get_session)]):
-    user.hashed_password = get_password_hash(user.hashed_password)
-    if(user.email):
+    email = session.exec(select(User).where(User.email == user.email)).first()
+    if email:
         raise HTTPException(status_code=400, detail="Email already registered")
+    user.hashed_password = get_password_hash(user.hashed_password)
     session.add(user)
     session.commit()
     session.refresh(user)
     return user
+
 
 async def login_for_access_token(form_data: Annotated[OAuth2PasswordRequestForm, Depends()], session: Annotated[Session, Depends(get_session)])->Token:
     user = authenticate_user(User, form_data.username, form_data.password, session)
@@ -77,3 +79,15 @@ async def google_user(session: Annotated[Session, Depends(get_session)], usernam
     except Exception as e:
         # Re-raise general exceptions to be handled in the web layer
         raise e
+
+def create_active_user_todo(todo:Todo, current_user: Annotated[User, Depends(get_current_active_user)], session: Annotated[Session, Depends(get_session)]):
+    print(f"user_id {current_user.id}")
+    if current_user:
+        todo.user_id = current_user.id
+    else:
+        raise HTTPException(status_code=400, detail="User not found")
+    session.add(todo)
+    session.commit()
+    session.refresh(todo)
+    return todo
+

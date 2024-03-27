@@ -32,3 +32,11 @@ class Token(BaseModel):
 class TokenData(BaseModel):
     username: str | None = None
     email: str | None = None
+
+class Todo(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    user_id: Optional[int] = Field(foreign_key="user.id")
+    title: str = Field(index=True)
+    status: bool = Field(default=False)
+    created_at: datetime.datetime = Field(default=datetime.datetime.now(datetime.timezone.utc))
+    updated_at: datetime.datetime = Field(default=datetime.datetime.now(datetime.timezone.utc))

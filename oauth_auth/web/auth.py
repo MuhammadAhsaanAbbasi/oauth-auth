@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends,  Form, Request, HTTPException, status
 from fastapi.responses import RedirectResponse, JSONResponse, Response
-from ..service.auth import create_user, login_for_access_token, token_manager, google_user
-from ..model.models import User, Token
+from ..service.auth import create_user, login_for_access_token, token_manager, google_user, create_active_user_todo
+from ..model.models import User, Token, Todo
 from typing import Annotated, Optional
 from sqlmodel import Session, select
 from ..data.db import get_session
@@ -137,3 +137,17 @@ async def get_tokens(session: Annotated[Session, Depends(get_session)], grant_ty
 @router.get("/user/me", response_model=User)
 async def read_users_me(current_user: Annotated[User, Depends(get_current_active_user)]):
     return current_user
+
+@router.post("/todo", response_model=Todo)
+async def create_todo(todo:Todo, 
+                    current_user: Annotated[User, Depends(get_current_active_user)],
+                    session: Annotated[Session, Depends(get_session)]):
+    todo = create_active_user_todo(todo, current_user, session=session)
+    return todo
+
+
+@router.get("/todo", response_model=list[Todo])
+async def get_todos(current_user: Annotated[User, Depends(get_current_active_user)],
+                    session: Annotated[Session, Depends(get_session)]):
+    todos = session.exec(select(Todo).where(Todo.user_id == current_user.id)).all()
+    return todos

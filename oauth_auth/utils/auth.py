@@ -6,7 +6,7 @@ from fastapi import HTTPException, Depends, status
 from ..data.db import get_session
 from sqlmodel import select, Session
 from typing import Annotated, Union
-from ..model.models import User, Token, TokenData
+from ..model.models import User, Token, TokenData, Todo
 from passlib.context import CryptContext
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
@@ -72,6 +72,7 @@ async def get_current_user(token: Annotated[str, Depends(oauth2_scheme)], sessio
 
 async def get_current_active_user(current_user: Annotated[User, Depends(get_current_user)]):
     if current_user.is_active:
+        print(current_user.id)
         return current_user
     else:
         raise HTTPException(
