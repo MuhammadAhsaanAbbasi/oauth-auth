@@ -8,6 +8,7 @@ class User(SQLModel, table=True):
     username: str = Field(index=True)
     email: str = Field(index=True, unique=True)
     hashed_password: Optional[str] = Field(index=True, nullable=True)
+    imageUrl: Optional[str] = Field(default=None)
     is_active: bool = Field(default=True)
     is_verified: bool = Field(default=False)
     role: str = Field(default="user")
@@ -15,13 +16,12 @@ class User(SQLModel, table=True):
     updated_at: datetime.datetime = Field(default=datetime.datetime.now(datetime.timezone.utc))
 
 class New_User():
-    username: str
-    email: EmailStr
+    email: str
     is_active: bool | None = True
     is_verified: bool | None = False
 
-class RegisterUser(New_User):
-    password: str | None = None
+class Login_User(New_User):
+    password: str
 
 class Token(BaseModel):
     access_token: str

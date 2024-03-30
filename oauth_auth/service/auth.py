@@ -4,6 +4,7 @@ from fastapi import Depends, HTTPException, Form
 from ..data.db import get_session
 from ..model.models import User, Token, Todo
 from fastapi.security.oauth2 import OAuth2PasswordRequestForm
+from fastapi.responses import RedirectResponse
 from ..utils.auth import authenticate_user, get_password_hash, create_access_token, create_refresh_token, tokens_service, get_current_active_user
 from datetime import timedelta
 from ..utils.auth import REFRESH_TOKEN_EXPIRE_MINUTES, ACCESS_TOKEN_EXPIRE_MINUTES
@@ -50,14 +51,14 @@ async def token_manager(session: Annotated[Session, Depends(get_session)], grant
     else:
         raise HTTPException(status_code=400, detail='grant type is required')
 
-async def google_user(session: Annotated[Session, Depends(get_session)], username:str, email:str ):
+async def google_user(session: Annotated[Session, Depends(get_session)], username:str, email:str, picture:str):
     user = session.exec(select(User).where(User.email == email)).first()
     try:
         if user is None:
             password_length = 12  # You can choose the length of the password
             characters = string.ascii_letters + string.digits + string.punctuation
             random_password = ''.join(secrets.choice(characters) for i in range(password_length))
-            user_data = User(username=username, email=email, hashed_password=random_password)
+            user_data = User(username=username, email=email, hashed_password=random_password, imageUrl=picture)
             
             new_user = await create_user(user_data, session)
             return new_user
@@ -67,12 +68,13 @@ async def google_user(session: Annotated[Session, Depends(get_session)], usernam
         refresh_token_expires = timedelta(minutes=REFRESH_TOKEN_EXPIRE_MINUTES)
         refresh_token = create_refresh_token(
                     data={"sub": user.email}, expires_delta=refresh_token_expires)
-        return Token(
-        access_token=access_token, 
-        token_type="bearer", 
-        expires_in=ACCESS_TOKEN_EXPIRE_MINUTES,
-        refresh_token=refresh_token
-        )
+        response = RedirectResponse(url='http://localhost:3000/user/me')
+        response.set_cookie(key="access_token", value=access_token, httponly=True)
+        response.set_cookie(key="refresh_token", value=refresh_token, httponly=True, expires=REFRESH_TOKEN_EXPIRE_MINUTES)
+        # response.set_cookie(key="picture", value=idinfo['picture']  , httponly=True)
+        # # Note: Don't set sensitive data in non-httponly cookies if it's not necessary
+        # response.set_cookie(key="google_user_data", value=json.dumps(idinfo)  , httponly=True)
+        return response
     except HTTPException as e:
         # Re-raise the exception to be handled in the web layer
         raise e

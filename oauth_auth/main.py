@@ -1,5 +1,6 @@
 from fastapi import FastAPI
 from starlette.middleware.sessions import SessionMiddleware
+from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 from .web.auth import router
 from .data.db import create_db_and_tables
@@ -35,6 +36,19 @@ app = FastAPI(
 )
 
 # SessionMiddleware must be installed to access request.session
-app.add_middleware(SessionMiddleware, secret_key="!secret")
+app.add_middleware(
+    SessionMiddleware, secret_key="!secret")
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["GET", "POST", "DELETE", "PUT"],
+    allow_headers=["*"],
+)
 
 app.router.include_router(router, tags=["OAuth2 Authentication"])
+
+@app.get("/")
+def get_root():
+    return {"message": "welcome to login System"}

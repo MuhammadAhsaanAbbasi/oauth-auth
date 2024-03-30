@@ -45,10 +45,7 @@ SCOPES = ['openid', 'https://www.googleapis.com/auth/userinfo.email', 'https://w
 # Router
 router = APIRouter(prefix="/api/auth")
 
-@router.get("/signout")
-def signout():
-    return {"message": "login"}
-
+# Google Login
 @router.get("/google/login")
 async def login(request:Request):
     flow = Flow.from_client_secrets_file(CLIENT_SECRET_FILE, scopes=SCOPES, redirect_uri=REDIRECT_URI)
@@ -62,6 +59,7 @@ async def login(request:Request):
     request.session['state'] = state
     return RedirectResponse(authorization_url)
 
+# Google Callback
 @router.get("/google/callback")
 async def auth(request: Request, session: Annotated[Session, Depends(get_session)]):
     try:
@@ -83,12 +81,16 @@ async def auth(request: Request, session: Annotated[Session, Depends(get_session
         # print(idinfo)
         print(idinfo['name'])
         print(idinfo['email'])
+        print(idinfo['picture'])
+        
         user_email = idinfo['email']
 
         user_name = idinfo['name']
+        
+        user_picture = idinfo['picture']
 
         # Check if the user exists in your database. If the user doesn't exist, add the user to the database
-        new_google_user = await google_user(session, email=user_email, username=user_name)
+        new_google_user = await google_user(session, email=user_email, username=user_name, picture=user_picture)
         if new_google_user is None:
             raise HTTPException(status_code=400, detail="User not found")
         
@@ -119,25 +121,30 @@ async def auth(request: Request, session: Annotated[Session, Depends(get_session
         failure_url = f"{FRONTEND_CLIENT_FAILURE_URI}?google_login_failed=error"
         return RedirectResponse(url=failure_url)
 
-@router.post("/sign-up")
+# Sign-up Routes
+@router.post("/signup")
 def sign_up(user: User, session: Annotated[Session, Depends(get_session)]):
     user = create_user(user, session)
     return user
 
+# Login Routes
 @router.post("/login", response_model=Token)
 async def login_access_token(form_data: Annotated[OAuth2PasswordRequestForm, Depends()], session: Annotated[Session, Depends(get_session)]):
     token = await login_for_access_token(form_data, session)
     return token
 
+# token route
 @router.post("/token")
 async def get_tokens(session: Annotated[Session, Depends(get_session)], grant_type:str = Form(...), refresh_token:Optional[str] = Form(None)):
     tokens = await token_manager(session, grant_type, refresh_token)
     return tokens
 
+# user routes
 @router.get("/user/me", response_model=User)
 async def read_users_me(current_user: Annotated[User, Depends(get_current_active_user)]):
     return current_user
 
+# user create todo
 @router.post("/todo", response_model=Todo)
 async def create_todo(todo:Todo, 
                     current_user: Annotated[User, Depends(get_current_active_user)],
@@ -145,7 +152,7 @@ async def create_todo(todo:Todo,
     todo = create_active_user_todo(todo, current_user, session=session)
     return todo
 
-
+# user get todos
 @router.get("/todo", response_model=list[Todo])
 async def get_todos(current_user: Annotated[User, Depends(get_current_active_user)],
                     session: Annotated[Session, Depends(get_session)]):
