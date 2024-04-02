@@ -39,17 +39,23 @@ async def login_for_access_token(form_data: Annotated[OAuth2PasswordRequestForm,
     refresh_token_expires = timedelta(minutes=float(REFRESH_TOKEN_EXPIRE_MINUTES))
     refresh_token = create_refresh_token(data={"email": user.email}, expires_delta=refresh_token_expires)
     print(ACCESS_TOKEN_EXPIRE_MINUTES)
-    return Token(access_token=access_token, token_type="bearer", expires_in= int(access_token_expires.total_seconds()), refresh_token=refresh_token)
+    return Token(
+        access_token=access_token, 
+        token_type="bearer", 
+        access_expires_in= int(access_token_expires.total_seconds()), 
+        refresh_token_expires_in= int(refresh_token_expires.total_seconds()),
+        refresh_token=refresh_token,
+        )
 
-async def token_manager(session: Annotated[Session, Depends(get_session)], grant_type:str = Form(...), refresh_token:Optional[str] = Form(None)):
-    if grant_type == 'refresh_token':
-        if not refresh_token:
-            raise HTTPException(status_code=400, detail='refresh token is required')
-        return await tokens_service(str(refresh_token), session)
-    elif grant_type == "authorization_code":
-        pass
-    else:
-        raise HTTPException(status_code=400, detail='grant type is required')
+# async def token_manager(session: Annotated[Session, Depends(get_session)], grant_type:str = Form(...), refresh_token:Optional[str] = Form(None)):
+#     if grant_type == 'refresh_token':
+#         if not refresh_token:
+#             raise HTTPException(status_code=400, detail='refresh token is required')
+#         return await tokens_service(str(refresh_token), session)
+#     elif grant_type == "authorization_code":
+#         pass
+#     else:
+#         raise HTTPException(status_code=400, detail='grant type is required')
 
 async def google_user(session: Annotated[Session, Depends(get_session)], username:str, email:str, picture:str):
     user = session.exec(select(User).where(User.email == email)).first()
@@ -62,18 +68,21 @@ async def google_user(session: Annotated[Session, Depends(get_session)], usernam
             
             new_user = await create_user(user_data, session)
             return new_user
+        
         access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
         access_token = create_access_token(
                     data={"sub": user.username}, expires_delta=access_token_expires)
+        print(f"access_token {access_token_expires.total_seconds()}")
+        
         refresh_token_expires = timedelta(minutes=REFRESH_TOKEN_EXPIRE_MINUTES)
         refresh_token = create_refresh_token(
                     data={"sub": user.email}, expires_delta=refresh_token_expires)
+        print(f"refresh_token {refresh_token_expires.total_seconds()}")
+        
         response = RedirectResponse(url='http://localhost:3000/user/me')
-        response.set_cookie(key="access_token", value=access_token, httponly=True)
-        response.set_cookie(key="refresh_token", value=refresh_token, httponly=True, expires=REFRESH_TOKEN_EXPIRE_MINUTES)
-        # response.set_cookie(key="picture", value=idinfo['picture']  , httponly=True)
-        # # Note: Don't set sensitive data in non-httponly cookies if it's not necessary
-        # response.set_cookie(key="google_user_data", value=json.dumps(idinfo)  , httponly=True)
+        response.set_cookie(key="access_token", value=access_token, httponly=True, expires=int(access_token_expires.total_seconds()))
+        response.set_cookie(key="refresh_token", value=refresh_token, httponly=True, expires=int(refresh_token_expires.total_seconds()))
+
         return response
     except HTTPException as e:
         # Re-raise the exception to be handled in the web layer

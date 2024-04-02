@@ -15,19 +15,12 @@ class User(SQLModel, table=True):
     created_at: datetime.datetime = Field(default=datetime.datetime.now(datetime.timezone.utc))
     updated_at: datetime.datetime = Field(default=datetime.datetime.now(datetime.timezone.utc))
 
-class New_User():
-    email: str
-    is_active: bool | None = True
-    is_verified: bool | None = False
-
-class Login_User(New_User):
-    password: str
-
 class Token(BaseModel):
     access_token: str
     token_type: str
-    expires_in: int
+    access_expires_in: int
     refresh_token: str
+    refresh_token_expires_in: int
 
 class TokenData(BaseModel):
     username: str | None = None

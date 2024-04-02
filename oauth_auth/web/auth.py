@@ -1,11 +1,11 @@
 from fastapi import APIRouter, Depends,  Form, Request, HTTPException, status
 from fastapi.responses import RedirectResponse, JSONResponse, Response
-from ..service.auth import create_user, login_for_access_token, token_manager, google_user, create_active_user_todo
+from ..service.auth import create_user, login_for_access_token, google_user, create_active_user_todo
 from ..model.models import User, Token, Todo
 from typing import Annotated, Optional
 from sqlmodel import Session, select
 from ..data.db import get_session
-from ..utils.auth import get_current_active_user
+from ..utils.auth import get_current_active_user, tokens_service, oauth2_scheme
 from fastapi.security.oauth2 import OAuth2PasswordRequestForm
 import os
 import json
@@ -95,16 +95,6 @@ async def auth(request: Request, session: Annotated[Session, Depends(get_session
             raise HTTPException(status_code=400, detail="User not found")
         
         return new_google_user
-
-        # After running nextjs project UCOMMENT THE FOLLOWING CODE and COMMENT OUT THE ABOVE RETURN line
-
-        # response = RedirectResponse(url='http://localhost:3000/user')
-        # response.set_cookie(key="email", value=idinfo['email'], httponly=True)
-        # response.set_cookie(key="name", value=idinfo['name'], httponly=True)
-        # response.set_cookie(key="picture", value=idinfo['picture']  , httponly=True)
-        # # Note: Don't set sensitive data in non-httponly cookies if it's not necessary
-        # response.set_cookie(key="google_user_data", value=json.dumps(idinfo)  , httponly=True)
-        # return response
     except HTTPException as http_exception:
         # Log the exception for debugging
         print(f"HTTPException occurred: {http_exception.detail}")
@@ -134,9 +124,9 @@ async def login_access_token(form_data: Annotated[OAuth2PasswordRequestForm, Dep
     return token
 
 # token route
-@router.post("/token")
-async def get_tokens(session: Annotated[Session, Depends(get_session)], grant_type:str = Form(...), refresh_token:Optional[str] = Form(None)):
-    tokens = await token_manager(session, grant_type, refresh_token)
+@router.post("/token", response_model=Token)
+async def get_tokens(session: Annotated[Session, Depends(get_session)], refresh_token:Annotated[str, Depends(oauth2_scheme)]): 
+    tokens = await tokens_service(refresh_token=refresh_token, session=session)
     return tokens
 
 # user routes
@@ -158,3 +148,14 @@ async def get_todos(current_user: Annotated[User, Depends(get_current_active_use
                     session: Annotated[Session, Depends(get_session)]):
     todos = session.exec(select(Todo).where(Todo.user_id == current_user.id)).all()
     return todos
+
+@router.delete("/todo/{todo_id}")
+def delete_todo(todo_id: int, current_user: Annotated[User, Depends(get_current_active_user)],
+                    session: Annotated[Session, Depends(get_session)]):
+    todo = session.exec(select(Todo).where(Todo.id == todo_id, Todo.user_id == current_user.id)).first()
+    if todo:
+        session.delete(todo)
+        session.commit()
+        return Response(status_code=status.HTTP_200_OK, content="Todo deleted successfully")
+    else:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Todo not found")

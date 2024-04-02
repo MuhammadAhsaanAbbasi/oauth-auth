@@ -130,11 +130,12 @@ async def tokens_service(refresh_token: str, session: Annotated[Session, Depends
     access_token = create_access_token(data={"sub": user.username}, expires_delta=access_token_expires)
 
     refresh_token_expires = timedelta(minutes=float(REFRESH_TOKEN_EXPIRE_MINUTES))
-    rotated_refresh_token = create_refresh_token(data={"email": user.email}, expires_delta=refresh_token_expires)
+    refresh_token = create_refresh_token(data={"email": user.email}, expires_delta=refresh_token_expires)
     print(ACCESS_TOKEN_EXPIRE_MINUTES)
     return {
         "access_token": access_token,
         "token_type": "bearer",
-        "expires_in": int(access_token_expires.total_seconds()),
-        "refresh_token": rotated_refresh_token
+        "access_expires_in": int(access_token_expires.total_seconds()), 
+        "refresh_token_expires_in": int(refresh_token_expires.total_seconds()),
+        "refresh_token": refresh_token
     }
