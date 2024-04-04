@@ -156,6 +156,6 @@ def delete_todo(todo_id: int, current_user: Annotated[User, Depends(get_current_
     if todo:
         session.delete(todo)
         session.commit()
-        return Response(status_code=status.HTTP_200_OK, content="Todo deleted successfully")
+        return todo
     else:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Todo not found")
